@@ -1,0 +1,11 @@
+services:
+  mongo:
+    image: mongo:latest
+    networks:
+      - royalroadbot-network
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=password
+
+networks:
+  royalroadbot-network:

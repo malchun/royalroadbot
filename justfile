@@ -9,7 +9,7 @@ build:
     sudo docker-compose build
 
 # Rebuild the Docker image (force rebuild without cache)
-rebuild:
+full-rebuild:
     sudo docker-compose build --no-cache
 
 # Run the container
@@ -32,5 +32,11 @@ logs:
 clean:
     sudo docker-compose down --rmi all --volumes
 
-# One command to rebuild and run
-restart: rebuild run
+# One command to build and run
+restart:
+    sudo docker-compose up --build
+
+# Run tests in Docker
+test:
+    sudo docker-compose -f docker-compose-test.yaml -f docker-compose-mongo.yaml up --build --abort-on-container-exit test
+    sudo docker-compose -f docker-compose-test.yaml -f docker-compose-mongo.yaml down

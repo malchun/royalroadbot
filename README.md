@@ -5,35 +5,31 @@ A simple web service that scrapes and displays the top 10 popular books from Roy
 ## Quick Start Guide
 
 ### Prerequisites
-- Go 1.20 or higher
+- Go 1.24 or higher
 - Docker and Docker Compose (optional, for containerized deployment)
 
 ### Local Development
 
 1. Clone the repository:
-   ```bash
-   git clone https://github.com/yourusername/royalroadbot.git
-   cd royalroadbot
-   ```
+```bash
+git clone https://github.com/yourusername/royalroadbot.git
+cd royalroadbot
+```
 
-2. Install dependencies:
-   ```bash
-   go mod download
-   ```
+2. Build and run the application:
+```bash
+just build
+just run
+```
 
-3. Run the application:
-   ```bash
-   go run main.go
-   ```
-
-4. Access the web service at [http://localhost:8090](http://localhost:8090)
+3. Access the web service at [http://localhost:8090](http://localhost:8090)
 
 ### Docker Deployment
 
 1. Build and start the container:
-   ```bash
-   docker-compose up --build
-   ```
+```bash
+docker-compose up --build
+```
 
 2. Access the web service at [http://localhost:8090](http://localhost:8090)
 

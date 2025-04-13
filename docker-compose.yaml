@@ -1,5 +1,11 @@
 services:
   royalroadbot:
     build: .
+    networks:
+      - royalroadbot-network
     ports:
       - "8090:8090"
+    depends_on:
+      - mongo
+networks:
+  royalroadbot-network:

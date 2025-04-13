@@ -1,12 +1,7 @@
 package main
 
 import (
-	"fmt"
 	"html/template"
-	"log"
-	"net/http"
-
-	"github.com/gocolly/colly/v2"
 )
 
 type Book struct {
@@ -14,43 +9,9 @@ type Book struct {
 	Link  string
 }
 
-func fetchPopularBooks() ([]Book, error) {
-	c := colly.NewCollector()
-
-	var books []Book
-
-	c.OnHTML(".fiction-list-item", func(e *colly.HTMLElement) {
-		title := e.ChildText(".fiction-title")
-		link := e.ChildAttr(".fiction-title a", "href")
-		if title != "" && link != "" {
-			books = append(books, Book{
-				Title: title,
-				Link:  "https://www.royalroad.com" + link,
-			})
-		}
-	})
-
-	err := c.Visit("https://www.royalroad.com/fictions/active-popular")
-	if err != nil {
-		return nil, err
-	}
-
-	if len(books) > 10 {
-		books = books[:10]
-	}
-
-	return books, nil
-}
-
-func booksHandler(w http.ResponseWriter, r *http.Request) {
-	books, err := fetchPopularBooks()
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to fetch books %s", err), http.StatusInternalServerError)
-		return
-	}
-
-	// Define the HTML template with search functionality
-	htmlTemplate := `
+func renderPage(books []Book) (*template.Template, error) {
+	// Parse the HTML template
+	tmpl, err := template.New("bookTemplate").Parse(`
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -148,57 +109,40 @@ func booksHandler(w http.ResponseWriter, r *http.Request) {
 				</footer>
 
 				<script>
-				function searchBooks() {
-					const input = document.getElementById('searchInput');
-					const filter = input.value.toUpperCase();
-					const bookList = document.getElementById('bookList');
-					const books = bookList.getElementsByTagName('li');
-					const noResults = document.getElementById('noResults');
+								function searchBooks() {
+												const input = document.getElementById('searchInput');
+												const filter = input.value.toUpperCase();
+												const bookList = document.getElementById('bookList');
+												const books = bookList.getElementsByTagName('li');
+												const noResults = document.getElementById('noResults');
 
-					let resultsFound = false;
+												let resultsFound = false;
 
-					for (let i = 0; i < books.length; i++) {
-						const bookTitle = books[i].getElementsByTagName('a')[0];
-						const txtValue = bookTitle.textContent || bookTitle.innerText;
+												for (let i = 0; i < books.length; i++) {
+																const bookTitle = books[i].getElementsByTagName('a')[0];
+																const txtValue = bookTitle.textContent || bookTitle.innerText;
 
-						if (txtValue.toUpperCase().indexOf(filter) > -1) {
-							books[i].style.display = "";
-							resultsFound = true;
-						} else {
-							books[i].style.display = "none";
-						}
-					}
+																if (txtValue.toUpperCase().indexOf(filter) > -1) {
+																				books[i].style.display = "";
+																				resultsFound = true;
+																} else {
+																				books[i].style.display = "none";
+																}
+												}
 
-					if (!resultsFound) {
-						noResults.style.display = "block";
-					} else {
-						noResults.style.display = "none";
-					}
-				}
+												if (resultsFound) {
+																noResults.style.display = "none";
+												} else {
+																noResults.style.display = "block";
+												}
+								}
 				</script>
 </body>
-</html>
-`
+</html>`)
 
-	// Create a new template and parse the HTML
-	tmpl, err := template.New("books").Parse(htmlTemplate)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to parse template: %s", err), http.StatusInternalServerError)
-		return
+		return nil, err
 	}
 
-	// Execute the template with the books data
-	err = tmpl.Execute(w, books)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to execute template: %s", err), http.StatusInternalServerError)
-		return
-	}
-}
-
-func main() {
-	http.HandleFunc("/", booksHandler)
-	fmt.Println("Starting server on :8090")
-	if err := http.ListenAndServe(":8090", nil); err != nil {
-		log.Fatalf("Could not start server: %s\n", err)
-	}
+	return tmpl, nil
 }
