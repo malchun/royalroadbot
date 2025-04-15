@@ -14,11 +14,11 @@ full-rebuild:
 
 # Run the container
 run:
-    sudo docker-compose up
+    sudo docker-compose -f docker-compose.yaml -f docker-compose-mongo.yaml up
 
 # Run the container in detached mode
 run-detached:
-    sudo docker-compose up -d
+    sudo docker-compose -f docker-compose.yaml -f docker-compose-mongo.yaml up -d
 
 # Stop the container
 stop:
@@ -30,7 +30,7 @@ logs:
 
 # Clean up - remove containers, images, and volumes
 clean:
-    sudo docker-compose down --rmi all --volumes
+    sudo docker-compose -f docker-compose.yaml -f docker-compose-mongo.yaml down --rmi all --volumes
 
 # One command to build and run
 restart:
