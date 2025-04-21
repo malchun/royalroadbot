@@ -5,5 +5,7 @@ services:
       - royalroadbot-network
     ports:
       - "8090:8090"
+    environment:
+      - MONGODB_URI=mongodb://admin:password@127.0.0.1:27017
 networks:
   royalroadbot-network:

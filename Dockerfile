@@ -10,7 +10,7 @@ RUN go mod download
 COPY . .
 
 # Build the Go application
-RUN go build -o royalroadbot app/.
+RUN go build -o royalroadbot ./app
 
 # ===========================
 # Use a lightweight Alpine-based image for the final stage

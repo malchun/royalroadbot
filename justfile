@@ -9,28 +9,32 @@ build:
     go build -o bin/royalroadbot ./app
 
 # Build the Docker image
-docker-build:
+build-docker:
     sudo docker-compose build
 
 # Rebuild the Docker image (force rebuild without cache)
-full-rebuild:
+rebuild-all:
     sudo docker-compose build --no-cache
 
 # Run the MongoDB development environment with Mongo Express client
-dev-mongo:
-    sudo docker-compose -f docker-compose-dev.yaml up -d
+run-dev-mongo:
+    sudo docker-compose -f docker-compose-mongo.yaml -f docker-compose-dev.yaml up -d
 
 # Stop the MongoDB development environment
-dev-mongo-stop:
-    sudo docker-compose -f docker-compose-dev.yaml down
+stop-dev-mongo:
+    sudo docker-compose -f docker-compose-mongo.yaml -f docker-compose-dev.yaml down
 
 # Build and run the application locally with dev MongoDB
-dev-run: build dev-mongo
-    MONGODB_URI="mongodb://admin:password@localhost:27017" ./bin/royalroadbot
+run-dev-local: build run-dev-mongo
+    MONGODB_URI="mongodb://admin:password@127.0.0.1:27017" ./bin/royalroadbot
 
 # Run the full container stack
 run:
     sudo docker-compose -f docker-compose.yaml -f docker-compose-mongo.yaml up
+
+# Run the mongo db
+run-mongo:
+    sudo docker-compose -f docker-compose-mongo.yaml up
 
 # Run the container in detached mode
 run-detached:
@@ -40,13 +44,17 @@ run-detached:
 stop:
     sudo docker-compose down
 
+# Stop all the containers
+stop-all:
+    sudo docker-compose -f docker-compose.yaml -f docker-compose-mongo.yaml -f docker-compose-dev.yaml down
+
 # Show logs of the running container
 logs:
     sudo docker-compose logs -f
 
 # Clean up - remove containers, images, and volumes
 clean:
-    sudo docker-compose -f docker-compose.yaml -f docker-compose-mongo.yaml down --rmi all --volumes
+    sudo docker-compose -f docker-compose.yaml -f docker-compose-mongo.yaml -f docker-compose-dev.yaml down --rmi all --volumes
 
 # One command to build and run
 restart:
@@ -58,5 +66,5 @@ test-docker:
     sudo docker-compose -f docker-compose-test.yaml -f docker-compose-mongo.yaml down
 
 # Run tests locally
-test:
+test-local:
     go test ./app/... -v
