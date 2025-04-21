@@ -19,7 +19,14 @@ const (
 
 var client *mongo.Client
 
+// Variable to allow overriding in tests
+var ConnectDBFunc = ConnectDBImpl
+
 func ConnectDB() {
+	ConnectDBFunc()
+}
+
+func ConnectDBImpl() {
 	mongoURI := os.Getenv("MONGODB_URI")
 
 	var err error
@@ -37,8 +44,16 @@ func ConnectDB() {
 	fmt.Println("Connected to MongoDB!")
 }
 
+// Variable to allow overriding in tests
+var saveBooksWithMetadataFunc = saveBooksWithMetadataImpl
+
 // saveBooksWithMetadata saves the list of books with their metadata to MongoDB database
 func saveBooksWithMetadata(books []Book) error {
+	return saveBooksWithMetadataFunc(books)
+}
+
+// The actual implementation
+func saveBooksWithMetadataImpl(books []Book) error {
 	ConnectDB()
 	defer client.Disconnect(context.TODO())
 

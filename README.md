@@ -18,12 +18,29 @@ cd royalroadbot
 ```
 
 2. Build and run the application:
+
+For local development with MongoDB client:
 ```bash
-just build
-just run
+just dev-mongo     # Start MongoDB and Mongo Express in containers
+just build         # Build the Go application locally
+just dev-run       # Build and run with local MongoDB (combines the above two steps)
 ```
 
-3. Access the web service at [http://localhost:8090](http://localhost:8090)
+For containerized deployment:
+```bash
+just docker-build  # Build Docker images
+just run           # Start all services via Docker Compose
+```
+
+3. Testing the application:
+```bash
+just test          # Run tests locally
+just test-docker   # Run tests in Docker container
+```
+
+4. Access the services:
+- Web application: [http://localhost:8090](http://localhost:8090)
+- MongoDB client (Mongo Express): [http://localhost:8081](http://localhost:8081) (when using dev-mongo)
 
 ### Docker Deployment
 
@@ -44,20 +61,38 @@ docker-compose -f docker-compose-test.yaml up --build
 docker-compose -f docker-compose-mongo.yaml up
 ```
 
+4. Development environment with MongoDB + Mongo Express:
+```bash
+docker-compose -f docker-compose-dev.yaml up
+```
+
 Access the web service at [http://localhost:8090](http://localhost:8090)
+
+For MongoDB Express web client, access [http://localhost:8081](http://localhost:8081)
 
 ## Project Structure
 
 - `app/`
-  - `main.go`: Core application logic and web server
-  - `main_page.go`: HTML template rendering
+  - `main.go`: Web server setup and request handling
+  - `crawler.go`: Web scraping functionality for RoyalRoad.com
+  - `main_page.go`: HTML template rendering and Book data structure
   - `database.go`: MongoDB integration and data persistence
   - `database_test.go`: Database operation tests
+  - `crawler_test.go`: Web scraper tests
+  - `main_page_test.go`: Template rendering tests
 - `Dockerfile`: Instructions for building the Docker container
 - `docker-compose.yaml`: Main Docker Compose configuration
 - `docker-compose-test.yaml`: Test environment configuration
 - `docker-compose-mongo.yaml`: MongoDB-only configuration
-- `justfile`: Task automation commands
+- `docker-compose-dev.yaml`: Development environment with MongoDB and Mongo Express
+- `justfile`: Task automation commands:
+  - `build`: Build the Go application locally
+  - `docker-build`: Build Docker containers
+  - `dev-mongo`: Start MongoDB with Mongo Express for development
+  - `dev-run`: Build and run with local MongoDB
+  - `run`: Run all services with Docker Compose
+  - `test`: Run tests locally
+  - `test-docker`: Run tests with Docker
 - `go.mod`, `go.sum`: Go dependencies
 
 ## Code Overview
@@ -82,10 +117,9 @@ The application performs the following tasks:
 - Add logging for debugging purposes
 
 ### 2. Code Organization
-- Consider breaking the application into packages:
-  - `scraper` for the web scraping logic
-  - `server` for the HTTP server implementation
+- Further improve the application structure by creating dedicated packages:
   - `models` for data structures
+  - `api` for any future API endpoints
 
 ### 3. Performance
 - Add caching to prevent scraping RoyalRoad on every request
@@ -98,15 +132,14 @@ The application performs the following tasks:
 - Implement pagination or filtering options
 
 ### 5. Testing
-- Expand unit test coverage
 - Add integration tests for the HTTP endpoints
 - Add end-to-end tests with Docker Compose test environment
+- Fix remaining test dependency issues
 
 ### 6. Configuration
 - Move hardcoded values to environment variables or a config file
 - Make the port configurable
 - Allow setting the number of books to display
-- Add MongoDB configuration options
 
 ### 7. Documentation
 - Add godoc comments to functions and types
