@@ -7,14 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// Book struct is defined in main_page.go
-type testBook struct {
-	Title string
-	Link  string
-}
-
 // Store mock books for testing
-var mockBooks []testBook
+var mockBooks []Book
 
 // Declarations for test mocking
 var originalConnectFunc func()
@@ -33,21 +27,16 @@ func init() {
 	}
 
 	saveBooksWithMetadataFunc = func(books []Book) error {
-		// Convert Book to testBook and save to our in-memory storage
-		mockBooks = make([]testBook, len(books))
-		for i, b := range books {
-			mockBooks[i] = testBook{
-				Title: b.Title,
-				Link:  b.Link,
-			}
-		}
+		// Save to our in-memory storage
+		mockBooks = make([]Book, len(books))
+		copy(mockBooks, books)
 		fmt.Println("Mock: Saved", len(books), "books to database")
 		return nil
 	}
 }
 
 // Mock function to get books from our in-memory storage
-func getTestBooks() ([]testBook, error) {
+func getTestBooks() ([]Book, error) {
 	return mockBooks, nil
 }
 

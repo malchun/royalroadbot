@@ -4,11 +4,6 @@ import (
 	"html/template"
 )
 
-type Book struct {
-	Title string
-	Link  string
-}
-
 func renderPage(books []Book) (*template.Template, error) {
 	// Parse the HTML template
 	tmpl, err := template.New("bookTemplate").Parse(`
