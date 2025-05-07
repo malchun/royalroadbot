@@ -5,7 +5,7 @@ A web service that scrapes, stores, and displays the top 10 popular books from R
 ## Quick Start Guide
 
 ### Prerequisites
-- Go 1.23 or higher
+- Go 1.23 or higher (currently using Go 1.24)
 - Docker and Docker Compose (optional, for containerized deployment)
 - MongoDB (included in docker-compose configuration)
 
@@ -21,26 +21,26 @@ cd royalroadbot
 
 For local development with MongoDB client:
 ```bash
-just dev-mongo     # Start MongoDB and Mongo Express in containers
-just build         # Build the Go application locally
-just dev-run       # Build and run with local MongoDB (combines the above two steps)
+just run-dev-mongo    # Start MongoDB and Mongo Express in containers
+just build           # Build the Go application locally
+just run-dev-local   # Build and run with local MongoDB
 ```
 
 For containerized deployment:
 ```bash
-just docker-build  # Build Docker images
-just run           # Start all services via Docker Compose
+just build-docker    # Build Docker images
+just run            # Start all services via Docker Compose
 ```
 
 3. Testing the application:
 ```bash
-just test          # Run tests locally
-just test-docker   # Run tests in Docker container
+just test-local     # Run tests locally
+just test-docker    # Run tests in Docker container
 ```
 
 4. Access the services:
 - Web application: [http://localhost:8090](http://localhost:8090)
-- MongoDB client (Mongo Express): [http://localhost:8081](http://localhost:8081) (when using dev-mongo)
+- MongoDB client (Mongo Express): [http://localhost:8081](http://localhost:8081) (when using run-dev-mongo)
 
 ### Docker Deployment
 
@@ -48,22 +48,22 @@ The project includes several Docker Compose configurations:
 
 1. Standard deployment (with MongoDB):
 ```bash
-docker-compose up --build
+just run  # or docker-compose up --build
 ```
 
 2. Test environment:
 ```bash
-docker-compose -f docker-compose-test.yaml up --build
+just test-docker  # or docker-compose -f docker-compose-test.yaml up --build
 ```
 
 3. MongoDB only (for local development):
 ```bash
-docker-compose -f docker-compose-mongo.yaml up
+just run-mongo  # or docker-compose -f docker-compose-mongo.yaml up
 ```
 
 4. Development environment with MongoDB + Mongo Express:
 ```bash
-docker-compose -f docker-compose-dev.yaml up
+just run-dev-mongo  # or docker-compose -f docker-compose-mongo.yaml -f docker-compose-dev.yaml up
 ```
 
 Access the web service at [http://localhost:8090](http://localhost:8090)
@@ -74,67 +74,90 @@ For MongoDB Express web client, access [http://localhost:8081](http://localhost:
 
 - `app/`
   - `main.go`: Web server setup and request handling
+  - `model.go`: Book data structure definition
   - `crawler.go`: Web scraping functionality for RoyalRoad.com
-  - `main_page.go`: HTML template rendering and Book data structure
+  - `main_page.go`: HTML template rendering for the front-end
   - `database.go`: MongoDB integration and data persistence
   - `database_test.go`: Database operation tests
   - `crawler_test.go`: Web scraper tests
   - `main_page_test.go`: Template rendering tests
 - `Dockerfile`: Instructions for building the Docker container
+- `Dockerfile.test`: Instructions for building the test container
 - `docker-compose.yaml`: Main Docker Compose configuration
 - `docker-compose-test.yaml`: Test environment configuration
 - `docker-compose-mongo.yaml`: MongoDB-only configuration
 - `docker-compose-dev.yaml`: Development environment with MongoDB and Mongo Express
-- `justfile`: Task automation commands:
-  - `build`: Build the Go application locally
-  - `docker-build`: Build Docker containers
-  - `dev-mongo`: Start MongoDB with Mongo Express for development
-  - `dev-run`: Build and run with local MongoDB
-  - `run`: Run all services with Docker Compose
-  - `test`: Run tests locally
-  - `test-docker`: Run tests with Docker
+- `justfile`: Task automation commands for building, running, and testing
 - `go.mod`, `go.sum`: Go dependencies
 
-## Code Overview
+## Current Functionality
 
-The application performs the following tasks:
+The application currently performs the following tasks:
 1. Scrapes the "active-popular" fiction list from RoyalRoad.com using Colly
 2. Extracts the top 10 book titles and links
 3. Stores the book data in MongoDB for persistence
-4. Presents them as a simple HTML list via a web server
+4. Presents books as a styled HTML list via a web server with a search function
+
+### Web Interface Features:
+- Clean, responsive UI with modern styling
+- Client-side search functionality for filtering books
+- Direct links to the books on RoyalRoad.com
 
 ## Main Dependencies
 
-- [Colly](http://go-colly.org/docs/): Web scraping framework
-- [MongoDB Go Driver](https://pkg.go.dev/go.mongodb.org/mongo-driver): Database operations
-- [Testify](https://github.com/stretchr/testify): Testing framework
+- **Go 1.24**: Latest stable version of Go
+- **[Colly v2.1.0](http://go-colly.org/docs/)**: Web scraping framework
+- **[MongoDB Go Driver v1.17.3](https://pkg.go.dev/go.mongodb.org/mongo-driver)**: Database operations
+- **[Testify v1.10.0](https://github.com/stretchr/testify)**: Testing framework
+- **Docker & Docker Compose**: Containerization and service orchestration
+- **Just**: Task runner for command automation
+
+## Development Commands
+
+The project includes a `justfile` with many helpful commands:
+
+- `just build` - Build the Go application locally
+- `just build-docker` - Build Docker containers
+- `just run-dev-mongo` - Start MongoDB with Mongo Express for development
+- `just run-dev-local` - Build and run with local MongoDB
+- `just run` - Run all services with Docker Compose
+- `just run-mongo` - Run just the MongoDB service
+- `just run-detached` - Run containers in detached mode
+- `just stop` - Stop running containers
+- `just stop-all` - Stop all containers (including dev environments)
+- `just logs` - Show logs from running containers
+- `just clean` - Remove containers, images, and volumes
+- `just restart` - Rebuild and restart all containers
+- `just test-docker` - Run tests in Docker environment
+- `just test-local` - Run tests locally
 
 ## Areas for Improvement
 
 ### 1. Error Handling
 - Add more robust error handling, especially for network failures
 - Implement retries for web scraping
-- Add logging for debugging purposes
+- Add structured logging for monitoring and debugging
 
 ### 2. Code Organization
 - Further improve the application structure by creating dedicated packages:
   - `models` for data structures
-  - `api` for any future API endpoints
+  - `api` for REST endpoints
+  - `storage` for database operations
 
 ### 3. Performance
 - Add caching to prevent scraping RoyalRoad on every request
 - Implement proper rate limiting to be respectful to the target website
-- Optimize database queries
+- Optimize database queries and add indexes
 
 ### 4. User Experience
-- Add CSS styling to improve the presentation
-- Consider adding more details about each book (cover images, ratings, etc.)
-- Implement pagination or filtering options
+- Add more details about each book (cover images, ratings, synopsis)
+- Implement pagination for larger datasets
+- Add sorting options (by popularity, rating, etc.)
 
 ### 5. Testing
 - Add integration tests for the HTTP endpoints
 - Add end-to-end tests with Docker Compose test environment
-- Fix remaining test dependency issues
+- Increase test coverage
 
 ### 6. Configuration
 - Move hardcoded values to environment variables or a config file
@@ -143,20 +166,8 @@ The application performs the following tasks:
 
 ### 7. Documentation
 - Add godoc comments to functions and types
-- Create API documentation if you expand the service
+- Create API documentation for future endpoints
 - Document database schema and operations
-
-## Best Practices
-
-1. **Rate Limiting**: Be respectful when scraping websites. Consider adding delays between requests or implementing a proper rate limiter.
-
-2. **Terms of Service**: Ensure you're complying with RoyalRoad's terms of service regarding scraping.
-
-3. **Error Handling**: Never ignore errors. Log them appropriately and return meaningful error messages.
-
-4. **Code Reviews**: Request code reviews for any significant changes.
-
-5. **Git Workflow**: Use feature branches and submit PRs for changes instead of committing directly to main.
 
 ## Common Issues and Solutions
 
@@ -181,12 +192,13 @@ The application performs the following tasks:
 
 ## Future Enhancements
 
-1. Create an API endpoint to return books in JSON format
-2. Implement user authentication to allow saving favorite books
+1. Create a REST API for programmatic access to book data
+2. Implement user accounts to save favorite books
 3. Set up scheduled scraping to maintain up-to-date information
-4. Add metrics and monitoring
-5. Implement book category filtering
-6. Add a search function for stored books
+4. Add metrics and monitoring (Prometheus/Grafana)
+5. Implement book category filtering and tags
+6. Add server-side pagination and advanced search options
+7. Collect and display more book metadata (ratings, chapters, etc.)
 
 ## Resources
 

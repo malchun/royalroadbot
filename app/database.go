@@ -19,14 +19,7 @@ const (
 
 var client *mongo.Client
 
-// Variable to allow overriding in tests
-var ConnectDBFunc = ConnectDBImpl
-
 func ConnectDB() {
-	ConnectDBFunc()
-}
-
-func ConnectDBImpl() {
 	mongoURI := os.Getenv("MONGODB_URI")
 
 	var err error
@@ -44,18 +37,22 @@ func ConnectDBImpl() {
 	fmt.Println("Connected to MongoDB!")
 }
 
-// Variable to allow overriding in tests
-var saveBooksWithMetadataFunc = saveBooksWithMetadataImpl
-
-// saveBooksWithMetadata saves the list of books with their metadata to MongoDB database
-func saveBooksWithMetadata(books []Book) error {
-	return saveBooksWithMetadataFunc(books)
+// isInTestEnvironment checks if we're running in a test environment
+func isInTestEnvironment() bool {
+	for _, arg := range os.Args {
+		if arg == "-test.v" || arg == "-test.run" {
+			return true
+		}
+	}
+	return false
 }
 
-// The actual implementation
-func saveBooksWithMetadataImpl(books []Book) error {
+func saveBooksWithMetadata(books []Book) error {
 	ConnectDB()
-	defer client.Disconnect(context.TODO())
+	// Only disconnect if not in a test environment
+	if !isInTestEnvironment() {
+		defer client.Disconnect(context.TODO())
+	}
 
 	collection := client.Database(dbName).Collection(collectionName)
 	for _, book := range books {

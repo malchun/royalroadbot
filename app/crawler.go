@@ -9,6 +9,14 @@ import (
 // fetchPopularBooks scrapes the RoyalRoad website for popular books
 // and returns the top 10 books with their titles and links
 func fetchPopularBooks() ([]Book, error) {
+	// Map of kinds and their corresponding URLs
+	crawlURLs := map[string]string{
+		"popular": "https://www.royalroad.com/fictions/active-popular",
+	}
+	return fetchBooks(crawlURLs["popular"])
+}
+
+func fetchBooks(crawlUrl string) ([]Book, error) {
 	c := colly.NewCollector()
 
 	var books []Book
@@ -24,7 +32,7 @@ func fetchPopularBooks() ([]Book, error) {
 		}
 	})
 
-	err := c.Visit("https://www.royalroad.com/fictions/active-popular")
+	err := c.Visit(crawlUrl)
 	if err != nil {
 		return nil, err
 	}
