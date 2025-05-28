@@ -8,10 +8,6 @@ default:
 build:
     go build -o bin/royalroadbot ./app
 
-# Build the Docker image
-build-docker:
-    docker-compose build
-
 # Rebuild the Docker image (force rebuild without cache)
 rebuild-all:
     docker-compose build --no-cache
@@ -32,13 +28,12 @@ run-dev-local: build run-dev-mongo
 run:
     docker-compose -f docker-compose.yaml -f docker-compose-mongo.yaml up
 
+# Rebuild containers and run again the full container stack
+re-run: rebuild-all run
+
 # Run the mongo db
 run-mongo:
     docker-compose -f docker-compose-mongo.yaml up
-
-# Run the container in detached mode
-run-detached:
-    docker-compose -f docker-compose.yaml -f docker-compose-mongo.yaml up -d
 
 # Stop the container
 stop:

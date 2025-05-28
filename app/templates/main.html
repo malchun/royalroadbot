@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Royal Road - Popular Books</title>
+	<!-- Include HTMX from CDN -->
+	<script src="https://unpkg.com/htmx.org@1.9.6" integrity="sha384-FhXw7b6AlE/jyjlZH5iHa/tTe9EpJ1Y55RjcgPbjeWMskSxZt1v9qkxLJWNJaGni" crossorigin="anonymous"></script>
+	<style>
+		:root {
+			/* Light theme variables */
+			--bg-primary: #f5f5f5;
+			--bg-secondary: white;
+			--text-primary: #333;
+			--text-secondary: #7f8c8d;
+			--accent-color: #3498db;
+			--accent-hover: #2980b9;
+			--border-color: #ddd;
+			--shadow: rgba(0,0,0,0.1);
+			--shadow-hover: rgba(0,0,0,0.1);
+		}
+
+		[data-theme="dark"] {
+			/* Dark theme variables */
+			--bg-primary: #1a1a1a;
+			--bg-secondary: #2d2d2d;
+			--text-primary: #e0e0e0;
+			--text-secondary: #a0a0a0;
+			--accent-color: #4a9eff;
+			--accent-hover: #357abd;
+			--border-color: #444;
+			--shadow: rgba(0,0,0,0.3);
+			--shadow-hover: rgba(0,0,0,0.4);
+		}
+
+		body {
+			font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+			line-height: 1.6;
+			color: var(--text-primary);
+			max-width: 800px;
+			margin: 0 auto;
+			padding: 20px;
+			background-color: var(--bg-primary);
+			transition: background-color 0.3s ease, color 0.3s ease;
+		}
+
+		h1 {
+			color: var(--text-primary);
+			text-align: center;
+			margin-bottom: 30px;
+			border-bottom: 2px solid var(--accent-color);
+			padding-bottom: 10px;
+		}
+
+		.header-controls {
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			gap: 20px;
+			margin-bottom: 20px;
+		}
+
+		.theme-toggle {
+			background: var(--bg-secondary);
+			border: 1px solid var(--border-color);
+			color: var(--text-primary);
+			padding: 8px 15px;
+			border-radius: 4px;
+			cursor: pointer;
+			transition: all 0.2s;
+		}
+
+		.theme-toggle:hover {
+			background-color: var(--accent-color);
+			color: white;
+		}
+
+		.search-container {
+			margin-bottom: 20px;
+			text-align: center;
+		}
+
+		#searchInput {
+			padding: 8px 15px;
+			width: 70%;
+			border: 1px solid var(--border-color);
+			border-radius: 4px;
+			font-size: 16px;
+			background-color: var(--bg-secondary);
+			color: var(--text-primary);
+			transition: all 0.2s;
+		}
+
+		#searchInput:focus {
+			outline: none;
+			border-color: var(--accent-color);
+		}
+
+		.book-list {
+			list-style-type: none;
+			padding: 0;
+		}
+
+		.book-item {
+			background-color: var(--bg-secondary);
+			margin-bottom: 10px;
+			padding: 15px;
+			border-radius: 5px;
+			box-shadow: 0 2px 5px var(--shadow);
+			transition: transform 0.2s, box-shadow 0.2s;
+		}
+
+		.book-item:hover {
+			transform: translateY(-3px);
+			box-shadow: 0 5px 15px var(--shadow-hover);
+		}
+
+		.book-item a {
+			color: var(--accent-color);
+			text-decoration: none;
+			font-weight: bold;
+			font-size: 18px;
+		}
+
+		.book-item a:hover {
+			text-decoration: underline;
+		}
+
+		.no-results {
+			text-align: center;
+			font-style: italic;
+			color: var(--text-secondary);
+			padding: 20px;
+		}
+
+		.refresh-btn {
+			background-color: var(--accent-color);
+			color: white;
+			border: none;
+			padding: 8px 15px;
+			border-radius: 4px;
+			cursor: pointer;
+			margin-top: 10px;
+			transition: background-color 0.2s;
+		}
+
+		.refresh-btn:hover {
+			background-color: var(--accent-hover);
+		}
+
+		footer {
+			margin-top: 30px;
+			text-align: center;
+			font-size: 14px;
+			color: var(--text-secondary);
+		}
+
+		.htmx-indicator {
+			opacity: 0;
+			transition: opacity 200ms ease-in;
+			color: var(--accent-color);
+		}
+
+		.htmx-request .htmx-indicator {
+			opacity: 1;
+		}
+
+		.htmx-request.htmx-indicator {
+			opacity: 1;
+		}
+
+		@media (max-width: 600px) {
+			.header-controls {
+				flex-direction: column;
+				gap: 10px;
+			}
+
+			#searchInput {
+				width: 90%;
+			}
+		}
+	</style>
+</head>
+<body data-theme="light">
+	<h1>Top 10 Popular Books on Royal Road</h1>
+
+	<div class="header-controls">
+		<button class="theme-toggle" onclick="toggleTheme()">🌙 Dark Mode</button>
+	</div>
+
+	<div class="search-container">
+		<input type="text" name="search" id="searchInput" placeholder="Search for books..." 
+			hx-post="/search"
+			hx-trigger="input changed delay:500ms, search"
+			hx-target="#book-results"
+			hx-indicator="#search-indicator">
+		<span id="search-indicator" class="htmx-indicator">Searching...</span>
+	</div>
+
+	<div id="book-results">
+		<ul class="book-list">
+			{{if .}}
+				{{range .}}
+				<li class="book-item">
+					<a href="{{.Link}}" target="_blank">{{.Title}}</a>
+				</li>
+				{{end}}
+			{{else}}
+				<div class="no-results">
+					No books found matching your search.
+				</div>
+			{{end}}
+		</ul>
+	</div>
+
+	<div style="text-align: center;">
+		<button class="refresh-btn"
+			hx-get="/refresh"
+			hx-target="#book-results"
+			hx-indicator="#refresh-indicator">
+			Refresh Books
+		</button>
+		<span id="refresh-indicator" class="htmx-indicator">Loading...</span>
+	</div>
+
+	<footer>
+		Data scraped from Royal Road's Active Popular Fiction List
+	</footer>
+
+	<script>
+		function toggleTheme() {
+			const body = document.body;
+			const themeToggle = document.querySelector('.theme-toggle');
+			const currentTheme = body.getAttribute('data-theme');
+			
+			if (currentTheme === 'light') {
+				body.setAttribute('data-theme', 'dark');
+				themeToggle.textContent = '☀️ Light Mode';
+				localStorage.setItem('theme', 'dark');
+			} else {
+				body.setAttribute('data-theme', 'light');
+				themeToggle.textContent = '🌙 Dark Mode';
+				localStorage.setItem('theme', 'light');
+			}
+		}
+
+		// Load saved theme on page load
+		document.addEventListener('DOMContentLoaded', function() {
+			const savedTheme = localStorage.getItem('theme') || 'light';
+			const body = document.body;
+			const themeToggle = document.querySelector('.theme-toggle');
+			
+			body.setAttribute('data-theme', savedTheme);
+			if (savedTheme === 'dark') {
+				themeToggle.textContent = '☀️ Light Mode';
+			} else {
+				themeToggle.textContent = '🌙 Dark Mode';
+			}
+		});
+	</script>
+</body>
+</html>

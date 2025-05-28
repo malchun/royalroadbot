@@ -78,6 +78,9 @@ For MongoDB Express web client, access [http://localhost:8081](http://localhost:
   - `crawler.go`: Web scraping functionality for RoyalRoad.com
   - `main_page.go`: HTML template rendering for the front-end
   - `database.go`: MongoDB integration and data persistence
+  - `templates/`: HTML templates directory
+    - `main.html`: Main page template with theme support
+    - `book_list.html`: Partial template for HTMX updates
   - `database_test.go`: Database operation tests
   - `crawler_test.go`: Web scraper tests
   - `main_page_test.go`: Template rendering tests
@@ -100,8 +103,11 @@ The application currently performs the following tasks:
 
 ### Web Interface Features:
 - Clean, responsive UI with modern styling
+- **Dark/Light theme toggle** with persistent user preference
 - Client-side search functionality for filtering books
+- HTMX-powered real-time search with debouncing
 - Direct links to the books on RoyalRoad.com
+- **Modular template system** with embedded filesystem
 
 ## Main Dependencies
 
@@ -139,6 +145,7 @@ The project includes a `justfile` with many helpful commands:
 - Add structured logging for monitoring and debugging
 
 ### 2. Code Organization
+- ✅ **Improved template organization** - Templates extracted to separate files
 - Further improve the application structure by creating dedicated packages:
   - `models` for data structures
   - `api` for REST endpoints
@@ -150,6 +157,7 @@ The project includes a `justfile` with many helpful commands:
 - Optimize database queries and add indexes
 
 ### 4. User Experience
+- ✅ **Dark/Light theme support** - Toggle with persistent preferences
 - Add more details about each book (cover images, ratings, synopsis)
 - Implement pagination for larger datasets
 - Add sorting options (by popularity, rating, etc.)
@@ -190,6 +198,16 @@ The project includes a `justfile` with many helpful commands:
 - Check connection string configuration
 - Ensure proper network configuration in Docker Compose
 
+## Recent Enhancements
+
+### Theme Support & Template Refactoring (Latest)
+- **Dark/Light Theme Toggle**: Users can switch between themes with a button
+- **Theme Persistence**: User preference saved in localStorage
+- **CSS Custom Properties**: Clean variable-based theming system
+- **Template Extraction**: HTML templates moved to separate files in `app/templates/`
+- **Embedded Filesystem**: Templates compiled into binary using Go's embed directive
+- **Improved Modularity**: Separate templates for main page and HTMX partials
+
 ## Future Enhancements
 
 1. Create a REST API for programmatic access to book data
@@ -199,6 +217,8 @@ The project includes a `justfile` with many helpful commands:
 5. Implement book category filtering and tags
 6. Add server-side pagination and advanced search options
 7. Collect and display more book metadata (ratings, chapters, etc.)
+8. Add more theme options (custom colors, high contrast mode)
+9. Implement keyboard shortcuts for theme switching
 
 ## Resources
 
