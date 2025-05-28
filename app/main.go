@@ -5,30 +5,49 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"sync"
 )
 
-var cachedBooks []Book
+var (
+	cachedBooks []Book
+	booksMutex  sync.RWMutex
+)
 
 func booksHandler(w http.ResponseWriter, r *http.Request) {
 	var err error
 	
 	// If no cached books, fetch them
-	if len(cachedBooks) == 0 {
-		cachedBooks, err = fetchPopularBooks()
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Failed to fetch books %s", err), http.StatusInternalServerError)
-			return
+	booksMutex.RLock()
+	needsFetch := len(cachedBooks) == 0
+	booksMutex.RUnlock()
+	
+	if needsFetch {
+		booksMutex.Lock()
+		// Double-check after acquiring write lock
+		if len(cachedBooks) == 0 {
+			cachedBooks, err = fetchPopularBooks()
+			if err != nil {
+				booksMutex.Unlock()
+				http.Error(w, fmt.Sprintf("Failed to fetch books: %s", err), http.StatusInternalServerError)
+				return
+			}
 		}
+		booksMutex.Unlock()
 	}
 
-	tmpl, err := renderPage(cachedBooks)
+	booksMutex.RLock()
+	booksCopy := make([]Book, len(cachedBooks))
+	copy(booksCopy, cachedBooks)
+	booksMutex.RUnlock()
+
+	tmpl, err := renderPage(booksCopy)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to parse template: %s", err), http.StatusInternalServerError)
 		return
 	}
 
 	// Execute the template with the books data
-	err = tmpl.Execute(w, cachedBooks)
+	err = tmpl.Execute(w, booksCopy)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to execute template: %s", err), http.StatusInternalServerError)
 		return
@@ -44,6 +63,7 @@ func searchHandler(w http.ResponseWriter, r *http.Request) {
 	searchQuery := strings.ToLower(r.FormValue("search"))
 	
 	// Filter the cached books based on the search query
+	booksMutex.RLock()
 	var filteredBooks []Book
 	if searchQuery != "" {
 		for _, book := range cachedBooks {
@@ -52,8 +72,10 @@ func searchHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	} else {
-		filteredBooks = cachedBooks
+		filteredBooks = make([]Book, len(cachedBooks))
+		copy(filteredBooks, cachedBooks)
 	}
+	booksMutex.RUnlock()
 	
 	// Render just the book list part
 	tmpl, err := renderBookList(filteredBooks)
@@ -73,20 +95,26 @@ func refreshHandler(w http.ResponseWriter, r *http.Request) {
 	var err error
 	
 	// Refetch books from the source
-	cachedBooks, err = fetchPopularBooks()
+	newBooks, err := fetchPopularBooks()
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to fetch books %s", err), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Failed to fetch books: %s", err), http.StatusInternalServerError)
 		return
 	}
 	
+	booksMutex.Lock()
+	cachedBooks = newBooks
+	booksCopy := make([]Book, len(cachedBooks))
+	copy(booksCopy, cachedBooks)
+	booksMutex.Unlock()
+	
 	// Render just the book list part
-	tmpl, err := renderBookList(cachedBooks)
+	tmpl, err := renderBookList(booksCopy)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to parse template: %s", err), http.StatusInternalServerError)
 		return
 	}
 	
-	err = tmpl.Execute(w, cachedBooks)
+	err = tmpl.Execute(w, booksCopy)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to execute template: %s", err), http.StatusInternalServerError)
 		return
@@ -96,9 +124,13 @@ func refreshHandler(w http.ResponseWriter, r *http.Request) {
 func main() {
 	// Initialize books on startup
 	var err error
-	cachedBooks, err = fetchPopularBooks()
+	initialBooks, err := fetchPopularBooks()
 	if err != nil {
 		log.Printf("Warning: Failed to pre-fetch books: %s", err)
+	} else {
+		booksMutex.Lock()
+		cachedBooks = initialBooks
+		booksMutex.Unlock()
 	}
 	
 	// Register routes
