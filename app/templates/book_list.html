@@ -1,0 +1,13 @@
+<ul class="book-list">
+	{{if .}}
+		{{range .}}
+		<li class="book-item">
+			<a href="{{.Link}}" target="_blank">{{.Title}}</a>
+		</li>
+		{{end}}
+	{{else}}
+		<div class="no-results">
+			No books found matching your search.
+		</div>
+	{{end}}
+</ul>
