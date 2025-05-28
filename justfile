@@ -39,10 +39,6 @@ run-mongo:
 stop:
     docker-compose down
 
-# Stop all the containers
-stop-all:
-    docker-compose -f docker-compose.yaml -f docker-compose-mongo.yaml -f docker-compose-dev.yaml down
-
 # Show logs of the running container
 logs:
     docker-compose logs -f
@@ -54,11 +50,6 @@ clean:
 # One command to build and run
 restart:
     docker-compose up --build
-
-# Run tests in Docker
-test-docker:
-    docker-compose -f docker-compose-test.yaml -f docker-compose-mongo.yaml up --build --abort-on-container-exit test
-    docker-compose -f docker-compose-test.yaml -f docker-compose-mongo.yaml down
 
 # Run tests locally
 test-local:

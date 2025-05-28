@@ -90,12 +90,11 @@ just run-dev-mongo     # Start MongoDB + Mongo Express
 just run-dev-local     # Build and run app locally
 
 # Full containerized deployment
-just build-docker      # Build all containers
+just rebuild-all      # Build all containers
 just run              # Start full stack
 
 # Testing
 just test-local       # Run tests locally
-just test-docker      # Run tests in containers
 
 # Utilities
 just clean            # Clean up containers/images
@@ -107,7 +106,6 @@ just logs             # View container logs
 1. **docker-compose.yaml** - Main application stack
 2. **docker-compose-mongo.yaml** - MongoDB only
 3. **docker-compose-dev.yaml** - Adds Mongo Express web client
-4. **docker-compose-test.yaml** - Test environment
 
 ### Environment Variables
 
