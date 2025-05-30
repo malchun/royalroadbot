@@ -41,13 +41,8 @@ func fetchBooks(crawlUrl string) ([]Book, error) {
 		books = books[:10]
 	}
 
-	// Save fetched books to MongoDB
-	err = saveBooksWithMetadata(books)
-	if err != nil {
-		log.Printf("Failed to save books: %v", err)
-	} else {
-		log.Println("Books saved successfully!")
-	}
+	// Popular books are now kept in memory only (not saved to database)
+	log.Printf("Fetched %d popular books", len(books))
 
 	return books, nil
 }

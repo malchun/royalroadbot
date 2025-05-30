@@ -1,6 +1,6 @@
 # RoyalRoadBot
 
-A web service that scrapes, stores, and displays the top 10 popular books from RoyalRoad.com.
+A web service that scrapes popular books from RoyalRoad.com and provides search functionality with the ability to memorize favorite books. Features a modern tabbed interface for browsing popular books and searching the entire RoyalRoad catalog.
 
 ## Quick Start Guide
 
@@ -73,17 +73,24 @@ For MongoDB Express web client, access [http://localhost:8081](http://localhost:
 ## Project Structure
 
 - `app/`
-  - `main.go`: Web server setup and request handling
+  - `main.go`: Web server setup and HTTP request handling
   - `model.go`: Book data structure definition
-  - `crawler.go`: Web scraping functionality for RoyalRoad.com
+  - `crawler.go`: Web scraping functionality for RoyalRoad.com popular books
+  - `searcher.go`: Royal Road search functionality and book memorization
   - `main_page.go`: HTML template rendering for the front-end
   - `database.go`: MongoDB integration and data persistence
   - `templates/`: HTML templates directory
-    - `main.html`: Main page template with theme support
-    - `book_list.html`: Partial template for HTMX updates
-  - `database_test.go`: Database operation tests
-  - `crawler_test.go`: Web scraper tests
-  - `main_page_test.go`: Template rendering tests
+    - `main.html`: Original main page template (legacy)
+    - `tabbed_main.html`: New tabbed interface with full functionality
+    - `book_list.html`: Partial template for popular books HTMX updates
+    - `search_results.html`: Partial template for search results
+    - `memorized_books.html`: Partial template for memorized books display
+  - `*_test.go`: Comprehensive test coverage
+    - `database_test.go`: Database operation tests
+    - `crawler_test.go`: Web scraper tests
+    - `searcher_test.go`: Search functionality and memorization tests
+    - `main_page_test.go`: Template rendering tests
+    - `main_test.go`: HTTP handler tests with testcontainer integration
 - `Dockerfile`: Instructions for building the Docker container
 - `Dockerfile.test`: Instructions for building the test container
 - `docker-compose.yaml`: Main Docker Compose configuration
@@ -94,19 +101,29 @@ For MongoDB Express web client, access [http://localhost:8081](http://localhost:
 
 ## Current Functionality
 
-The application currently performs the following tasks:
+The application provides a comprehensive book discovery and management system:
+
+### Popular Books Tab:
 1. Scrapes the "active-popular" fiction list from RoyalRoad.com using Colly
-2. Extracts the top 10 book titles and links
-3. Stores the book data in MongoDB for persistence
-4. Presents books as a styled HTML list via a web server with a search function
+2. Extracts the top 10 book titles and links (no database persistence for popular books)
+3. Presents books as a styled HTML list with client-side search filtering
+4. Allows memorizing books directly from the popular list
+
+### Search & Memorize Tab:
+1. **Real-time search** across RoyalRoad's entire catalog using their search API
+2. **Book memorization** - Save favorite books to your personal collection
+3. **Memorized books management** - View and remove books from your collection
+4. **Persistent storage** - Memorized books saved in MongoDB with proper metadata
 
 ### Web Interface Features:
+- **Tabbed interface** - Separate "Popular Books" and "Search & Memorize" tabs
 - Clean, responsive UI with modern styling
 - **Dark/Light theme toggle** with persistent user preference
-- Client-side search functionality for filtering books
-- HTMX-powered real-time search with debouncing
-- Direct links to the books on RoyalRoad.com
+- **HTMX-powered interactions** - Real-time search with 500ms debouncing
+- **Action buttons** - Memorize books from search results, remove from collection
+- Direct links to books on RoyalRoad.com
 - **Modular template system** with embedded filesystem
+- **Mobile responsive design** with optimized layouts
 
 ## Main Dependencies
 
@@ -116,6 +133,7 @@ The application currently performs the following tasks:
 - **[Testify v1.10.0](https://github.com/stretchr/testify)**: Testing framework
 - **Docker & Docker Compose**: Containerization and service orchestration
 - **Just**: Task runner for command automation
+- **HTMX 1.9.6**: Dynamic HTML interactions without complex JavaScript
 
 ## Development Commands
 
@@ -155,6 +173,9 @@ The project includes a `justfile` with many helpful commands:
 
 ### 4. User Experience
 - ✅ **Dark/Light theme support** - Toggle with persistent preferences
+- ✅ **Tabbed interface** - Separate popular books and search functionality
+- ✅ **Book memorization** - Save and manage favorite books
+- ✅ **Real-time search** - Search entire RoyalRoad catalog with debouncing
 - Add more details about each book (cover images, ratings, synopsis)
 - Implement pagination for larger datasets
 - Add sorting options (by popularity, rating, etc.)
@@ -197,7 +218,14 @@ The project includes a `justfile` with many helpful commands:
 
 ## Recent Enhancements
 
-### Theme Support & Template Refactoring (Latest)
+### Search & Memorize Feature (Latest)
+- **Tabbed Interface**: Clean separation between popular books and search functionality
+- **Royal Road Search Integration**: Search the entire RoyalRoad catalog in real-time
+- **Book Memorization**: Save favorite books to a personal collection stored in MongoDB
+- **HTMX-Powered Interactions**: Smooth, dynamic user experience without page reloads
+- **Comprehensive Testing**: Full test coverage including HTTP handlers, templates, and database operations
+
+### Theme Support & Template Refactoring
 - **Dark/Light Theme Toggle**: Users can switch between themes with a button
 - **Theme Persistence**: User preference saved in localStorage
 - **CSS Custom Properties**: Clean variable-based theming system
@@ -208,14 +236,17 @@ The project includes a `justfile` with many helpful commands:
 ## Future Enhancements
 
 1. Create a REST API for programmatic access to book data
-2. Implement user accounts to save favorite books
-3. Set up scheduled scraping to maintain up-to-date information
+2. Implement user accounts with authentication (currently single-user memorization)
+3. Set up scheduled scraping to maintain up-to-date popular books information
 4. Add metrics and monitoring (Prometheus/Grafana)
-5. Implement book category filtering and tags
-6. Add server-side pagination and advanced search options
-7. Collect and display more book metadata (ratings, chapters, etc.)
+5. Implement book category filtering and advanced search filters
+6. Add server-side pagination for large search results
+7. Collect and display more book metadata (ratings, chapters, synopsis, cover images)
 8. Add more theme options (custom colors, high contrast mode)
-9. Implement keyboard shortcuts for theme switching
+9. Implement keyboard shortcuts and accessibility improvements
+10. Add bulk operations for memorized books (export, import, organize)
+11. Implement book recommendations based on memorized books
+12. Add reading progress tracking and notes functionality
 
 ## Resources
 
