@@ -1,14 +1,62 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/modules/mongodb"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
+
+// setupTestDatabaseForHandlers starts a MongoDB container and returns a cleanup function
+func setupTestDatabaseForHandlers(t *testing.T) (func(), string) {
+	// Create MongoDB container request
+	ctx := context.Background()
+	mongodbContainer, err := mongodb.RunContainer(ctx,
+		testcontainers.WithImage("mongo:latest"),
+		testcontainers.WithWaitStrategy(
+			wait.ForLog("Waiting for connections").WithStartupTimeout(time.Second*30),
+		),
+	)
+	require.NoError(t, err, "Failed to start MongoDB container")
+
+	// Get connection URI
+	connectionURI, err := mongodbContainer.ConnectionString(ctx)
+	require.NoError(t, err, "Failed to get MongoDB connection string")
+
+	// Store original environment variable
+	originalURI := os.Getenv("MONGODB_URI")
+
+	// Set environment variable for MongoDB URI
+	os.Setenv("MONGODB_URI", connectionURI)
+
+	// Return cleanup function
+	cleanup := func() {
+		// Reset the global client to nil to ensure tests don't interfere with each other
+		client = nil
+		// Restore original environment variable
+		if originalURI != "" {
+			os.Setenv("MONGODB_URI", originalURI)
+		} else {
+			os.Unsetenv("MONGODB_URI")
+		}
+		// Terminate the container
+		if err := mongodbContainer.Terminate(ctx); err != nil {
+			t.Fatalf("Failed to terminate MongoDB container: %v", err)
+		}
+	}
+
+	return cleanup, connectionURI
+}
 
 // Test setup helper function to initialize and later restore the global cached books
 func setupCachedBooksForTest(t *testing.T) func() {
@@ -199,4 +247,296 @@ func TestRefreshHandler(t *testing.T) {
 	
 	// Verify the old book is gone
 	assert.NotContains(t, body, "Initial Book")
+}
+
+func TestSearchBooksHandler(t *testing.T) {
+	// Test valid search query
+	t.Run("Valid search query", func(t *testing.T) {
+		form := url.Values{}
+		form.Add("query", "test")
+		formData := form.Encode()
+
+		req, err := http.NewRequest("POST", "/search-books", strings.NewReader(formData))
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(searchBooksHandler)
+
+		handler.ServeHTTP(rr, req)
+
+		// Should return OK status
+		assert.Equal(t, http.StatusOK, rr.Code)
+		
+		// Should return HTML content type
+		assert.Contains(t, rr.Header().Get("Content-Type"), "text/html")
+		
+		// Should contain HTML book list structure
+		body := rr.Body.String()
+		assert.Contains(t, body, `<ul class="book-list">`)
+	})
+
+	// Test empty search query
+	t.Run("Empty search query", func(t *testing.T) {
+		form := url.Values{}
+		form.Add("query", "")
+		formData := form.Encode()
+
+		req, err := http.NewRequest("POST", "/search-books", strings.NewReader(formData))
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(searchBooksHandler)
+
+		handler.ServeHTTP(rr, req)
+
+		// Should return bad request status
+		assert.Equal(t, http.StatusBadRequest, rr.Code)
+	})
+
+	// Test missing query parameter
+	t.Run("Missing query parameter", func(t *testing.T) {
+		req, err := http.NewRequest("POST", "/search-books", strings.NewReader(""))
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(searchBooksHandler)
+
+		handler.ServeHTTP(rr, req)
+
+		// Should return bad request status
+		assert.Equal(t, http.StatusBadRequest, rr.Code)
+	})
+}
+
+func TestMemorizeBookHandler(t *testing.T) {
+	// Test valid book memorization
+	t.Run("Valid book memorization", func(t *testing.T) {
+		// Setup test database
+		cleanup, _ := setupTestDatabaseForHandlers(t)
+		defer cleanup()
+
+		form := url.Values{}
+		form.Add("title", "Test Book")
+		form.Add("link", "https://example.com/test")
+		formData := form.Encode()
+
+		req, err := http.NewRequest("POST", "/memorize-book", strings.NewReader(formData))
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(memorizeBookHandler)
+
+		handler.ServeHTTP(rr, req)
+
+		// Should return OK status
+		assert.Equal(t, http.StatusOK, rr.Code)
+		
+		// Should contain success message
+		body := rr.Body.String()
+		assert.Contains(t, body, "Book memorized successfully")
+	})
+
+	// Test GET method (should be rejected)
+	t.Run("GET method not allowed", func(t *testing.T) {
+		req, err := http.NewRequest("GET", "/memorize-book", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(memorizeBookHandler)
+
+		handler.ServeHTTP(rr, req)
+
+		// Should return method not allowed status
+		assert.Equal(t, http.StatusMethodNotAllowed, rr.Code)
+	})
+
+	// Test missing title
+	t.Run("Missing title", func(t *testing.T) {
+		form := url.Values{}
+		form.Add("link", "https://example.com/test")
+		formData := form.Encode()
+
+		req, err := http.NewRequest("POST", "/memorize-book", strings.NewReader(formData))
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(memorizeBookHandler)
+
+		handler.ServeHTTP(rr, req)
+
+		// Should return bad request status
+		assert.Equal(t, http.StatusBadRequest, rr.Code)
+	})
+
+	// Test missing link
+	t.Run("Missing link", func(t *testing.T) {
+		form := url.Values{}
+		form.Add("title", "Test Book")
+		formData := form.Encode()
+
+		req, err := http.NewRequest("POST", "/memorize-book", strings.NewReader(formData))
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(memorizeBookHandler)
+
+		handler.ServeHTTP(rr, req)
+
+		// Should return bad request status
+		assert.Equal(t, http.StatusBadRequest, rr.Code)
+	})
+}
+
+func TestMemorizedBooksHandler(t *testing.T) {
+	// Test getting memorized books
+	t.Run("Get memorized books", func(t *testing.T) {
+		// Setup test database
+		cleanup, _ := setupTestDatabaseForHandlers(t)
+		defer cleanup()
+
+		req, err := http.NewRequest("GET", "/memorized-books", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(memorizedBooksHandler)
+
+		handler.ServeHTTP(rr, req)
+
+		// Should return OK status
+		assert.Equal(t, http.StatusOK, rr.Code)
+		
+		// Should return HTML content type
+		assert.Contains(t, rr.Header().Get("Content-Type"), "text/html")
+		
+		// Should contain HTML book list structure
+		body := rr.Body.String()
+		assert.Contains(t, body, `<ul class="book-list">`)
+	})
+}
+
+func TestRemoveMemorizedBookHandler(t *testing.T) {
+	// Test valid book removal
+	t.Run("Valid book removal", func(t *testing.T) {
+		// Setup test database
+		cleanup, _ := setupTestDatabaseForHandlers(t)
+		defer cleanup()
+
+		// First memorize a book
+		book := Book{Title: "Book to Remove", Link: "https://example.com/remove"}
+		err := memorizeBook(book)
+		require.NoError(t, err)
+
+		// Now remove it
+		form := url.Values{}
+		form.Add("title", "Book to Remove")
+		formData := form.Encode()
+
+		req, err := http.NewRequest("POST", "/remove-memorized-book", strings.NewReader(formData))
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(removeMemorizedBookHandler)
+
+		handler.ServeHTTP(rr, req)
+
+		// Should return OK status
+		assert.Equal(t, http.StatusOK, rr.Code)
+		
+		// Should return HTML content type
+		assert.Contains(t, rr.Header().Get("Content-Type"), "text/html")
+
+		// Verify book was actually removed from database
+		books, err := getMemorizedBooks()
+		assert.NoError(t, err)
+		for _, b := range books {
+			assert.NotEqual(t, "Book to Remove", b.Title)
+		}
+	})
+
+	// Test GET method not allowed
+	t.Run("GET method not allowed", func(t *testing.T) {
+		req, err := http.NewRequest("GET", "/remove-memorized-book", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(removeMemorizedBookHandler)
+
+		handler.ServeHTTP(rr, req)
+
+		// Should return method not allowed
+		assert.Equal(t, http.StatusMethodNotAllowed, rr.Code)
+	})
+
+	// Test missing title
+	t.Run("Missing title", func(t *testing.T) {
+		form := url.Values{}
+		// No title added
+		formData := form.Encode()
+
+		req, err := http.NewRequest("POST", "/remove-memorized-book", strings.NewReader(formData))
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(removeMemorizedBookHandler)
+
+		handler.ServeHTTP(rr, req)
+
+		// Should return bad request
+		assert.Equal(t, http.StatusBadRequest, rr.Code)
+	})
+
+	// Test removing non-existent book
+	t.Run("Remove non-existent book", func(t *testing.T) {
+		// Setup test database
+		cleanup, _ := setupTestDatabaseForHandlers(t)
+		defer cleanup()
+
+		form := url.Values{}
+		form.Add("title", "Non-existent Book")
+		formData := form.Encode()
+
+		req, err := http.NewRequest("POST", "/remove-memorized-book", strings.NewReader(formData))
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(removeMemorizedBookHandler)
+
+		handler.ServeHTTP(rr, req)
+
+		// Should return internal server error when book doesn't exist
+		assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	})
 }

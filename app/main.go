@@ -40,7 +40,7 @@ func booksHandler(w http.ResponseWriter, r *http.Request) {
 	copy(booksCopy, cachedBooks)
 	booksMutex.RUnlock()
 
-	tmpl, err := renderPage(booksCopy)
+	tmpl, err := renderTabbedMain(booksCopy)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to parse template: %s", err), http.StatusInternalServerError)
 		return
@@ -121,6 +121,142 @@ func refreshHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func searchBooksHandler(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Failed to parse form", http.StatusBadRequest)
+		return
+	}
+	
+	searchQuery := strings.TrimSpace(r.FormValue("query"))
+	if searchQuery == "" {
+		http.Error(w, "Search query cannot be empty", http.StatusBadRequest)
+		return
+	}
+	
+	// Search Royal Road for books
+	books, err := searchRoyalRoadBooks(searchQuery)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to search books: %s", err), http.StatusInternalServerError)
+		return
+	}
+	
+	// Render search results template
+	tmpl, err := renderSearchResults(books)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to parse template: %s", err), http.StatusInternalServerError)
+		return
+	}
+	
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	err = tmpl.Execute(w, books)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to execute template: %s", err), http.StatusInternalServerError)
+		return
+	}
+}
+
+func memorizeBookHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Failed to parse form", http.StatusBadRequest)
+		return
+	}
+	
+	title := strings.TrimSpace(r.FormValue("title"))
+	link := strings.TrimSpace(r.FormValue("link"))
+	
+	if title == "" || link == "" {
+		http.Error(w, "Title and link are required", http.StatusBadRequest)
+		return
+	}
+	
+	book := Book{
+		Title: title,
+		Link:  link,
+	}
+	
+	err := memorizeBook(book)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to memorize book: %s", err), http.StatusInternalServerError)
+		return
+	}
+	
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, "Book memorized successfully")
+}
+
+func memorizedBooksHandler(w http.ResponseWriter, r *http.Request) {
+	books, err := getMemorizedBooks()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to get memorized books: %s", err), http.StatusInternalServerError)
+		return
+	}
+	
+	// Render memorized books template
+	tmpl, err := renderMemorizedBooks(books)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to parse template: %s", err), http.StatusInternalServerError)
+		return
+	}
+	
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	err = tmpl.Execute(w, books)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to execute template: %s", err), http.StatusInternalServerError)
+		return
+	}
+}
+
+func removeMemorizedBookHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Failed to parse form", http.StatusBadRequest)
+		return
+	}
+	
+	title := strings.TrimSpace(r.FormValue("title"))
+	
+	if title == "" {
+		http.Error(w, "Title is required", http.StatusBadRequest)
+		return
+	}
+	
+	err := removeMemorizedBook(title)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to remove book: %s", err), http.StatusInternalServerError)
+		return
+	}
+	
+	// Return updated memorized books list
+	books, err := getMemorizedBooks()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to get memorized books: %s", err), http.StatusInternalServerError)
+		return
+	}
+	
+	// Render memorized books template
+	tmpl, err := renderMemorizedBooks(books)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to render template: %s", err), http.StatusInternalServerError)
+		return
+	}
+	
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	err = tmpl.Execute(w, books)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to execute template: %s", err), http.StatusInternalServerError)
+		return
+	}
+}
+
 func main() {
 	// Initialize books on startup
 	var err error
@@ -137,6 +273,10 @@ func main() {
 	http.HandleFunc("/", booksHandler)
 	http.HandleFunc("/search", searchHandler)
 	http.HandleFunc("/refresh", refreshHandler)
+	http.HandleFunc("/search-books", searchBooksHandler)
+	http.HandleFunc("/memorize-book", memorizeBookHandler)
+	http.HandleFunc("/memorized-books", memorizedBooksHandler)
+	http.HandleFunc("/remove-memorized-book", removeMemorizedBookHandler)
 	
 	fmt.Println("Starting server on :8090")
 	if err := http.ListenAndServe(":8090", nil); err != nil {

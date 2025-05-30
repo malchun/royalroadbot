@@ -1,0 +1,27 @@
+<ul class="book-list">
+	{{if .}}
+		{{range .}}
+		<li class="book-item">
+			<div class="book-info">
+				<a href="{{.Link}}" target="_blank">{{.Title}}</a>
+			</div>
+			<div class="book-actions">
+				<button class="memorize-btn"
+					hx-post="/memorize-book"
+					hx-vals='{"title": "{{.Title}}", "link": "{{.Link}}"}'
+					hx-target="#search-status"
+					hx-indicator="#search-memorize-indicator">
+					📚 Memorize
+				</button>
+			</div>
+		</li>
+		{{end}}
+	{{else}}
+		<div class="no-results">
+			No books found for your search query.
+		</div>
+	{{end}}
+</ul>
+
+<div id="search-status"></div>
+<span id="search-memorize-indicator" class="htmx-indicator">Memorizing...</span>

@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**RoyalRoadBot** is a Go web application that scrapes, stores, and displays the top 10 popular books from RoyalRoad.com. It features a modern web interface with real-time search capabilities and data persistence through MongoDB.
+**RoyalRoadBot** is a Go web application that scrapes popular books from RoyalRoad.com and provides comprehensive search functionality with book memorization features. It features a modern tabbed web interface with real-time search capabilities across the entire RoyalRoad catalog and persistent book collection management through MongoDB.
 
 ### Key Information
 - **Language**: Go 1.24
@@ -20,12 +20,16 @@ royalroadbot/
 ├── app/                    # Main application code
 │   ├── main.go            # HTTP server and route handlers
 │   ├── model.go           # Data structures (Book)
-│   ├── crawler.go         # Web scraping logic (Colly)
+│   ├── crawler.go         # Web scraping logic for popular books (Colly)
+│   ├── searcher.go        # Royal Road search and book memorization
 │   ├── database.go        # MongoDB operations
 │   ├── main_page.go       # Template rendering with embedded filesystem
 │   ├── templates/         # HTML templates directory
-│   │   ├── main.html     # Main page template with theme support
-│   │   └── book_list.html # Partial template for HTMX updates
+│   │   ├── main.html     # Legacy main page template
+│   │   ├── tabbed_main.html # New tabbed interface with full functionality
+│   │   ├── book_list.html # Partial template for popular books HTMX updates
+│   │   ├── search_results.html # Partial template for search results
+│   │   └── memorized_books.html # Partial template for memorized books
 │   └── *_test.go          # Comprehensive test suite
 ├── bin/                   # Compiled binaries
 ├── docker-compose*.yaml   # Multiple Docker configurations
@@ -58,27 +62,37 @@ royalroadbot/
 
 ## Key Features
 
-### Web Scraping
+### Popular Books Tab
 - Scrapes RoyalRoad.com's "active-popular" fiction list
 - Extracts book titles and links using CSS selectors
 - Limits results to top 10 books
-- Handles network errors gracefully
+- No database persistence (memory-only for popular books)
+- Client-side search filtering
+- Direct memorization from popular list
+
+### Search & Memorize Tab
+- **Real-time search** across RoyalRoad's entire catalog
+- **Book memorization** - Save favorite books to personal collection
+- **Memorized books management** - View and remove saved books
+- **Search debouncing** with 500ms delay for optimal performance
+- **HTMX-powered interactions** for smooth user experience
 
 ### Web Interface
-- Real-time search with 500ms debounce
-- Manual refresh capability
-- Responsive design for all devices
-- HTMX-powered partial page updates
-- Direct links to books on RoyalRoad.com
-- **Dark/Light theme toggle** with persistent user preference
+- **Tabbed interface** - Clean separation of popular books and search functionality
+- **Theme system** - Dark/Light mode toggle with persistent user preference
+- **Responsive design** for all devices and screen sizes
+- **HTMX-powered partial page updates** without full page reloads
 - **CSS Custom Properties** for clean theming system
-- **Template modularity** with separate files for main page and partials
+- **Template modularity** with separate files for different interface sections
+- **Action buttons** for memorizing and removing books
+- **Loading indicators** and status messages for user feedback
 
 ### Data Management
-- MongoDB persistence with automatic connection management
-- In-memory caching for performance
-- Metadata storage with timestamps
-- Connection pooling and proper cleanup
+- **MongoDB persistence** for memorized books with proper metadata
+- **Separate collections** - Popular books (memory-only) vs memorized books (persistent)
+- **Connection management** with automatic cleanup and pooling
+- **CRUD operations** for memorized book collection
+- **Duplicate prevention** for memorized books
 
 ## Development Workflow
 
@@ -117,12 +131,17 @@ just logs             # View container logs
 
 ### Main Application (`app/main.go`)
 - HTTP server on port 8090
-- Three main routes:
-  - `/` - Main page with book list
-  - `/search` - HTMX search endpoint
-  - `/refresh` - Manual data refresh
-- Global caching with `cachedBooks` variable
-- Error handling with HTTP status codes
+- Seven main routes:
+  - `/` - Main tabbed interface page
+  - `/search` - Legacy HTMX search endpoint for popular books
+  - `/refresh` - Manual refresh of popular books
+  - `/search-books` - Royal Road search endpoint
+  - `/memorize-book` - Save book to memorized collection
+  - `/memorized-books` - Get memorized books list
+  - `/remove-memorized-book` - Remove book from memorized collection
+- Global caching with `cachedBooks` variable for popular books
+- Comprehensive error handling with proper HTTP status codes
+- HTMX-compatible HTML responses for dynamic updates
 
 ### Data Model (`app/model.go`)
 ```go
@@ -132,41 +151,63 @@ type Book struct {
 }
 ```
 
-### Web Scraping (`app/crawler.go`)
-- Uses Colly framework
+### Popular Books Scraping (`app/crawler.go`)
+- Uses Colly framework for RoyalRoad popular books
 - Targets `.fiction-list-item` CSS selector
 - Extracts `.fiction-title` and link attributes
-- Automatically saves to MongoDB after scraping
-- Robust error handling
+- **Memory-only storage** (no database persistence for popular books)
+- Robust error handling with graceful fallbacks
+
+### Search Functionality (`app/searcher.go`)
+- **Royal Road search integration** using their search API
+- **Book memorization** with duplicate prevention
+- **Memorized book retrieval** and management
+- **Book removal** from memorized collection
+- Comprehensive error handling and logging
+- Input validation and sanitization
 
 ### Database Layer (`app/database.go`)
-- MongoDB connection management
-- BSON serialization
-- Test environment detection
-- Connection cleanup and resource management
-- Collections: `royalRoadBooks.books`
+- MongoDB connection management with automatic detection
+- BSON serialization for Book structures
+- Test environment detection for proper cleanup
+- Connection pooling and resource management
+- **Dual collection strategy**:
+  - `royalRoadBooks.books` - Legacy collection (not used in current implementation)
+  - `royalRoadBooks.memorizedBooks` - Active collection for user's memorized books
+- **CRUD operations** for memorized books with proper error handling
+- **Duplicate prevention** and existence checking
 
 ### Frontend (`app/main_page.go` + `app/templates/`)
 - **Embedded filesystem** using Go's `//go:embed` directive
-- **Modular templates**: `main.html` for full page, `book_list.html` for partials
-- **Theme support**: CSS custom properties for light/dark modes
-- HTMX integration for dynamic updates
-- Search indicators and loading states
-- **Template separation**: HTML moved from inline strings to external files
+- **Comprehensive template system**:
+  - `tabbed_main.html` - Main tabbed interface with full functionality
+  - `search_results.html` - Partial for Royal Road search results
+  - `memorized_books.html` - Partial for memorized books display
+  - `book_list.html` - Partial for popular books HTMX updates
+  - `main.html` - Legacy template (maintained for compatibility)
+- **Advanced theme support**: CSS custom properties for light/dark modes
+- **HTMX integration** for seamless dynamic updates
+- **Interactive elements**: Tab switching, search debouncing, action buttons
+- **Status indicators**: Loading states, success/error messages
+- **Mobile responsiveness**: Optimized layouts for all screen sizes
+- **Template separation**: Clean separation of concerns with modular design
 
 ## Testing Strategy
 
 ### Test Coverage
-- **Unit Tests**: All major functions tested
+- **Unit Tests**: All major functions comprehensively tested
 - **Integration Tests**: Database operations with testcontainers
-- **HTTP Tests**: Handler testing with httptest
-- **Template Tests**: HTML rendering verification
+- **HTTP Handler Tests**: Complete handler testing with httptest
+- **Template Tests**: HTML rendering verification for all templates
+- **Search Tests**: Royal Road search functionality with mock servers
+- **Memorization Tests**: Book saving, retrieval, and removal operations
 
 ### Test Files
-- `crawler_test.go` - Web scraping with mock servers
-- `database_test.go` - MongoDB operations
-- `main_page_test.go` - Template rendering
-- `main_test.go` - HTTP handlers
+- `crawler_test.go` - Popular books scraping with mock servers
+- `searcher_test.go` - Search functionality and book memorization
+- `database_test.go` - MongoDB operations including memorized books
+- `main_page_test.go` - Template rendering for all templates
+- `main_test.go` - HTTP handlers including new search and memorization endpoints
 
 ### Testing Infrastructure
 - Testcontainers for real MongoDB instances
@@ -187,24 +228,27 @@ type Book struct {
 ### Common Tasks
 
 **Adding New Features:**
-- Add handler to `main.go`
-- Update templates in `main_page.go` if needed
-- Add corresponding tests
+- Add handler to `main.go` (follow existing pattern)
+- Update appropriate templates in `app/templates/` directory
+- Add corresponding tests in relevant `*_test.go` files
 - Update justfile if new commands needed
+- Maintain HTMX compatibility for dynamic interactions
 
 **Database Changes:**
-- Modify structures in `model.go`
-- Update database operations in `database.go`
-- Add migration logic if needed
-- Update tests accordingly
+- Modify structures in `model.go` if needed
+- Update database operations in `database.go` (consider separate collections)
+- Add migration logic if schema changes required
+- Update tests accordingly (use testcontainers for integration tests)
+- Follow existing memorized books pattern for new collections
 
 **Frontend Updates:**
-- Modify templates in `app/templates/` directory
-- Update `main_page.go` for template loading changes
-- Maintain HTMX compatibility
-- Keep responsive design principles
-- Test theme switching functionality
-- Test across different screen sizes
+- Modify templates in `app/templates/` directory (use embedded filesystem)
+- Update `main_page.go` for new template functions
+- Maintain HTMX compatibility for partial updates
+- Follow responsive design principles
+- Test theme switching functionality across all new interfaces
+- Test across different screen sizes and devices
+- Consider tab structure when adding new functionality
 
 ### Development Best Practices
 
@@ -293,18 +337,28 @@ github.com/testcontainers/testcontainers-go # Integration testing
 
 ## Recent Major Changes
 
+### Search & Memorize Feature Implementation
+- **Tabbed Interface**: Complete redesign with separate Popular Books and Search & Memorize tabs
+- **Royal Road Search Integration**: Real-time search across entire RoyalRoad catalog
+- **Book Memorization System**: Save and manage favorite books with MongoDB persistence
+- **HTMX-Powered Interactions**: Smooth, dynamic user experience without page reloads
+- **Advanced Template System**: Modular templates for different interface sections
+- **Comprehensive Testing**: Full test coverage including new handlers, templates, and database operations
+
 ### Template Refactoring & Theme Support
 - **Template Extraction**: HTML templates moved from inline strings to separate files
 - **Embedded Filesystem**: Templates compiled into binary using `//go:embed`
 - **Theme System**: Dark/Light mode toggle with CSS custom properties
 - **Persistence**: Theme preference saved in localStorage
-- **Modularity**: Separation of main page and partial templates for better maintainability
+- **Enhanced Modularity**: Multiple template files for different UI sections
 
 ### Technical Implementation Details
-- **File Structure**: Templates now in `app/templates/` directory
-- **Loading Mechanism**: `template.ParseFS()` instead of `template.Parse()`
-- **Theme Variables**: CSS custom properties for consistent theming
-- **JavaScript Integration**: Minimal JS for theme switching functionality
-- **Backward Compatibility**: All existing functionality preserved
+- **Architecture**: Dual-tab system with separate functionality per tab
+- **File Structure**: Expanded templates in `app/templates/` directory
+- **Database Strategy**: Separate collections for popular vs memorized books
+- **Loading Mechanism**: `template.ParseFS()` with multiple template functions
+- **JavaScript Enhancement**: Tab switching, search debouncing, HTMX event handling
+- **Mobile Responsiveness**: Optimized layouts for all screen sizes
+- **Backward Compatibility**: All existing functionality preserved and enhanced
 
 This guide provides comprehensive information for AI assistants working on the RoyalRoadBot project. Always refer to the README.md for user-facing documentation and this file for development guidance.

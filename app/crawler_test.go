@@ -63,33 +63,14 @@ func setupTestWithMongoDB(t *testing.T) (*mongodb.MongoDBContainer, *mongo.Clien
 	return mongodbContainer, testClient, cleanup
 }
 
-// Helper function to verify saved books in MongoDB
-func verifyBooksInMongoDB(t *testing.T, testClient *mongo.Client, expectedBooks []Book) {
+// Helper function to verify that NO books are saved in MongoDB for popular books
+func verifyNoBooksInMongoDB(t *testing.T, testClient *mongo.Client) {
 	ctx := context.Background()
 	collection := testClient.Database(dbName).Collection(collectionName)
 
-	var savedBooks []Book
-	cursor, err := collection.Find(ctx, bson.M{})
+	count, err := collection.CountDocuments(ctx, bson.M{})
 	require.NoError(t, err)
-
-	err = cursor.All(ctx, &savedBooks)
-	require.NoError(t, err)
-
-	// Compare books
-	assert.Equal(t, len(expectedBooks), len(savedBooks))
-
-	// Create maps of books by title for easier comparison
-	expectedMap := make(map[string]string)
-	for _, book := range expectedBooks {
-		expectedMap[book.Title] = book.Link
-	}
-
-	savedMap := make(map[string]string)
-	for _, book := range savedBooks {
-		savedMap[book.Title] = book.Link
-	}
-
-	assert.Equal(t, expectedMap, savedMap)
+	assert.Equal(t, int64(0), count, "Popular books should not be saved to database")
 }
 
 // Positive Tests
@@ -129,8 +110,8 @@ func TestFetchBooks_Success(t *testing.T) {
 	assert.Equal(t, "Test Book 2", books[1].Title)
 	assert.Equal(t, "https://www.royalroad.com/fiction/5678", books[1].Link)
 
-	// Verify books were saved in MongoDB
-	verifyBooksInMongoDB(t, testClient, books)
+	// Verify popular books are NOT saved to MongoDB (memory-only now)
+	verifyNoBooksInMongoDB(t, testClient)
 }
 
 // Test that we only return a maximum of 10 books
@@ -170,8 +151,8 @@ func TestFetchBooks_MaximumTenBooks(t *testing.T) {
 	assert.Equal(t, "Test Book 1", books[0].Title)
 	assert.Equal(t, "Test Book 10", books[9].Title)
 
-	// Verify books were saved in MongoDB (only the first 10)
-	verifyBooksInMongoDB(t, testClient, books)
+	// Verify popular books are NOT saved to MongoDB (memory-only now)
+	verifyNoBooksInMongoDB(t, testClient)
 }
 
 // Test handling empty response still works
@@ -194,11 +175,7 @@ func TestFetchBooks_EmptyResponse(t *testing.T) {
 	assert.Empty(t, books) // Should return empty slice
 
 	// Verify no books were saved in MongoDB
-	ctx := context.Background()
-	collection := testClient.Database(dbName).Collection(collectionName)
-	count, err := collection.CountDocuments(ctx, bson.M{})
-	require.NoError(t, err)
-	assert.Equal(t, int64(0), count)
+	verifyNoBooksInMongoDB(t, testClient)
 }
 
 // Test that we handle and filter items with missing data correctly
@@ -240,8 +217,8 @@ func TestFetchBooks_MissingData(t *testing.T) {
 	assert.Equal(t, "Test Book 1", books[0].Title)
 	assert.Equal(t, "Test Book 4", books[1].Title)
 
-	// Verify only valid books were saved in MongoDB
-	verifyBooksInMongoDB(t, testClient, books)
+	// Verify popular books are NOT saved to MongoDB (memory-only now)
+	verifyNoBooksInMongoDB(t, testClient)
 }
 
 // Negative Tests
@@ -259,11 +236,7 @@ func TestFetchBooks_InvalidURL(t *testing.T) {
 	assert.Nil(t, books)
 
 	// Verify no books were saved in MongoDB
-	ctx := context.Background()
-	collection := testClient.Database(dbName).Collection(collectionName)
-	count, err := collection.CountDocuments(ctx, bson.M{})
-	require.NoError(t, err)
-	assert.Equal(t, int64(0), count)
+	verifyNoBooksInMongoDB(t, testClient)
 }
 
 // Test handling server errors
@@ -290,11 +263,7 @@ func TestFetchBooks_ServerError(t *testing.T) {
 	}
 
 	// Verify no books were saved in MongoDB
-	ctx := context.Background()
-	collection := testClient.Database(dbName).Collection(collectionName)
-	count, err := collection.CountDocuments(ctx, bson.M{})
-	require.NoError(t, err)
-	assert.Equal(t, int64(0), count)
+	verifyNoBooksInMongoDB(t, testClient)
 }
 
 // Test that the function doesn't crash with malformed HTML
@@ -317,9 +286,5 @@ func TestFetchBooks_MalformedHTML(t *testing.T) {
 	assert.Empty(t, books) // Either empty or nil books
 
 	// Verify no books were saved in MongoDB
-	ctx := context.Background()
-	collection := testClient.Database(dbName).Collection(collectionName)
-	count, err := collection.CountDocuments(ctx, bson.M{})
-	require.NoError(t, err)
-	assert.Equal(t, int64(0), count)
+	verifyNoBooksInMongoDB(t, testClient)
 }

@@ -1,0 +1,31 @@
+<div class="memorized-header">
+	<span class="memorized-count">{{len .}} memorized books</span>
+</div>
+
+<ul class="book-list">
+	{{if .}}
+		{{range .}}
+		<li class="book-item">
+			<div class="book-info">
+				<a href="{{.Link}}" target="_blank">{{.Title}}</a>
+			</div>
+			<div class="book-actions">
+				<button class="remove-btn"
+					hx-post="/remove-memorized-book"
+					hx-vals='{"title": "{{.Title}}"}'
+					hx-target="#memorized-results"
+					hx-indicator="#memorized-remove-indicator"
+					hx-confirm="Are you sure you want to remove '{{.Title}}' from your memorized books?">
+					🗑️ Remove
+				</button>
+			</div>
+		</li>
+		{{end}}
+	{{else}}
+		<div class="no-results">
+			No memorized books yet. Search and memorize books from the search tab or popular books.
+		</div>
+	{{end}}
+</ul>
+
+<span id="memorized-remove-indicator" class="htmx-indicator">Removing...</span>
